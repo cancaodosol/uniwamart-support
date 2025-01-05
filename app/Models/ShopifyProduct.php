@@ -94,7 +94,7 @@ class ShopifyProduct
 
     function isVariation(){
         if($this->isValidOption($this->optionName1, $this->optionValue1)) return true;
-        return true;
+        return false;
     }
 
     function getTypeCode(){
