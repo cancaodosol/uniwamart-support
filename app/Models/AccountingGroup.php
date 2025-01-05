@@ -25,7 +25,7 @@ class AccountingGroup
     }
 
     public static function get() {
-        $csvFile = ".".Storage::url('app/csv/products_accounting_group.csv');
+        $csvFile = ".".Storage::url('app/csv/products_accounting_group_0105.csv');
 
         $accountingGroups = [];
         $accountingGroupProductTitles = [];

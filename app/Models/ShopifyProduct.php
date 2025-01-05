@@ -10,6 +10,12 @@ class ShopifyProduct
 {
     public $handle = "";
     public $title = "";
+    public $optionName1 = "";
+    public $optionValue1 = "";
+    public $optionName2 = "";
+    public $optionValue2 = "";
+    public $optionName3 = "";
+    public $optionValue3 = "";
     public $price = "";
     public $sku = "";
     public $barcode = "";
@@ -47,6 +53,12 @@ class ShopifyProduct
         $result->handle = $row[0];
         $result->title = $row[1];
         $result->type = $row[5];
+        $result->optionName1 = $row[8];
+        $result->optionValue1 = $row[9];
+        $result->optionName2 = $row[11];
+        $result->optionValue2 = $row[12];
+        $result->optionName3 = $row[14];
+        $result->optionValue3 = $row[15];
         $result->price = $row[22];
         $result->sku = $row[17];
         $result->barcode = $row[26];
@@ -54,10 +66,35 @@ class ShopifyProduct
         return $result;
     }
 
+    function setParentRow($product){
+        $this->status = $product->status;
+        $this->title = $product->title;
+        $this->type = $product->type;
+        $this->optionName1 = $product->optionName1;
+        $this->optionName2 = $product->optionName2;
+        $this->optionName3 = $product->optionName3;
+    }
+
     function isEmpty(){
         if($this->title == null) return true;
         if($this->status == "draft") return true;
         return false;
+    }
+
+    function isEmpty2(){
+        if($this->title == null && $this->optionValue1 == null) return true;
+        if($this->status == "draft") return true;
+        return false;
+    }
+
+    function isParent(){
+        if($this->handle != null && $this->title != null) return true;
+        return false;
+    }
+
+    function isVariation(){
+        if($this->isValidOption($this->optionName1, $this->optionValue1)) return true;
+        return true;
     }
 
     function getTypeCode(){
@@ -85,11 +122,31 @@ class ShopifyProduct
         return "";
     }
 
+    function getOptionName()
+    {
+        $options = [];
+        if($this->isValidOption($this->optionName1, $this->optionValue1)) $options[] = $this->optionValue1;
+        if($this->isValidOption($this->optionName2, $this->optionValue2)) $options[] = $this->optionValue2;
+        if($this->isValidOption($this->optionName3, $this->optionValue3)) $options[] = $this->optionValue3;
+        return implode("/", $options);
+    }
+
+    function isValidOption($optionName, $optionValue)
+    {
+        if(!$optionName && !$optionValue) return false;
+        if($optionName == "Title" && $optionValue == "Default Title") return false;
+        return true;
+    }
+
     function toString() {
-        return $this->status.",".$this->type.",".$this->handle.",".$this->title.",".$this->sku.",".$this->barcode.",".$this->getProductCode().",".$this->price;
+        return $this->status.",".$this->type.",".$this->handle.",".$this->title.",".$this->sku.",".$this->barcode.",".$this->price.",".$this->getOptionName();
     }
 
     function toSmaregiFormart($productId, $ifnullProductCode = "") {
         return $productId.",".$this->getTypeCode().",".$this->getProductCode($ifnullProductCode).",".$this->getTitle().",".$this->price.",,,,";
+    }
+
+    function toSmaregiFormart2($productId, $ifnullProductCode = "") {
+        return $productId.",".$this->getTypeCode().",".$this->getProductCode($ifnullProductCode).",".$this->getTitle().",".$this->price.",,,,,".$this->getOptionName();
     }
 }
