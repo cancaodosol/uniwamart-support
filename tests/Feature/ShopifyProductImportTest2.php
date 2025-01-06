@@ -33,6 +33,9 @@ class ShopifyProductImportTest2 extends TestCase
         // 経理用の分類を取得
         $groups = AccountingGroup::get();
 
+        // スマレジに登録させたくない商品名一覧を取得
+        $exclutionTitles = ShopifyProduct::getExclutionTitles();
+
         $count = 1;
         $delimiter = ",";
         $line = "";

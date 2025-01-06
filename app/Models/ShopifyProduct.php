@@ -48,6 +48,10 @@ class ShopifyProduct
     function __construct() {
     }
 
+    public static function getExclutionTitles() {
+        return config('smaregi.exclute_product_titles');
+    }
+
     public static function loadCsvRow($row) {
         $result = new ShopifyProduct();
         $result->handle = $row[0];
