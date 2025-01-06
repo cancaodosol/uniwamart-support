@@ -41,6 +41,8 @@ class ShopifyProductImportTest2 extends TestCase
         while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
             $product = ShopifyProduct::loadCsvRow($csvRow);
             $count++;
+
+            // バリエーション商品だった場合は、親商品から情報を引き継ぐ。
             if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
             if($product->isParent()) $parentProduct = $product;
             if($product->isEmpty2()) continue;
@@ -48,7 +50,11 @@ class ShopifyProductImportTest2 extends TestCase
                 if($parentProduct->isEmpty2()) continue;
                 $product->setParentRow($parentProduct);
             }
-            $ifnullProductCode = "UNIMA".(1000000 + $count);
+
+            // スマレジに登録できる商品なのかチェック
+            if(!$product->isValidImportSmaregi($duplicateProductCodes, $exclutionTitles, true)) continue;
+
+            $ifnullProductCode = sprintf('UNIMA%08d', 1000000 + $count);
             $line .= $product->toSmaregiFormart2(1000000 + $count, $ifnullProductCode).",".$product->getGroupName($groups)."\n";
         }
         \Log::debug($line);
