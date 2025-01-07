@@ -64,8 +64,8 @@ class ShopifyProduct
         $result->optionName3 = $row[14];
         $result->optionValue3 = $row[15];
         $result->price = $row[22];
-        $result->sku = $row[17];
-        $result->barcode = $row[26];
+        $result->sku = str_replace("'", "", $row[17]);
+        $result->barcode = str_replace("'", "", $row[26]);
         $result->status = $row[56];
         return $result;
     }
