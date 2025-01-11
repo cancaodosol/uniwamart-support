@@ -52,6 +52,10 @@ class ShopifyProduct
         return config('smaregi.exclute_product_titles');
     }
 
+    public static function getVariationOnceProductTitleOptions() {
+        return config('smaregi.variation_once_product_title_options');
+    }
+
     public static function loadCsvRow($row) {
         $result = new ShopifyProduct();
         $result->handle = $row[0];
@@ -142,12 +146,32 @@ class ShopifyProduct
         return true;
     }
 
-    function isValidImportSmaregi($duplicateProductCodes, $exclutionTitles, $outputLog = false)
+    function clearAllOptions()
+    {
+        $this->optionName1 = "";
+        $this->optionValue1 = "";
+        $this->optionName2 = "";
+        $this->optionValue2 = "";
+        $this->optionName3 = "";
+        $this->optionValue3 = "";
+    }
+
+    function isValidImportSmaregi($duplicateProductCodes, $outputLog = false)
     {
         $message = "";
+        $isVariationOnce = false;
+        $onceOptions = ShopifyProduct::getVariationOnceProductTitleOptions();
+        if(in_array($this->title, array_keys($onceOptions))){
+            if($onceOptions[$this->title]['option_name'] == $this->getOptionName()) {
+                $isVariationOnce = true;
+                $this->clearAllOptions();
+            } else {
+                $message .= "⚪︎バリエーション単一化のため、除去";
+            }
+        }
         if(strlen($this->getProductCode()) > 20) $message .= "×商品コードが20文字より大きい"; // MEMO: 商品コードは20文字以下の制限があるため、その調査用。
-        if(in_array($this->getProductCode(), $duplicateProductCodes)) $message .= "×商品コードが重複している"; // MEMO: 商品コードが重複しているものは除去。
-        if(in_array($this->title, $exclutionTitles)) $message .= "⚪︎スマレジ取り込み対象外"; // MEMO: スマレジ取り込み対象外のため、除外。
+        if(!$isVariationOnce && in_array($this->getProductCode(), $duplicateProductCodes)) $message .= "×商品コードが重複している"; // MEMO: 商品コードが重複しているものは除去。
+        if(in_array($this->title, ShopifyProduct::getExclutionTitles())) $message .= "⚪︎スマレジ取り込み対象外"; // MEMO: スマレジ取り込み対象外のため、除外。
         if($outputLog && $message) \Log::debug("exclute: ".$this->toString().",".$message);
         return $message == "";
     }

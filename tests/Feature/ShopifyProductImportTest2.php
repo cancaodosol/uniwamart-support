@@ -33,9 +33,6 @@ class ShopifyProductImportTest2 extends TestCase
         // 経理用の分類を取得
         $groups = AccountingGroup::get();
 
-        // スマレジに登録させたくない商品名一覧を取得
-        $exclutionTitles = ShopifyProduct::getExclutionTitles();
-
         $count = 1;
         $delimiter = ",";
         $line = "";
@@ -55,7 +52,7 @@ class ShopifyProductImportTest2 extends TestCase
             }
 
             // スマレジに登録できる商品なのかチェック
-            if(!$product->isValidImportSmaregi($duplicateProductCodes, $exclutionTitles, true)) continue;
+            if(!$product->isValidImportSmaregi($duplicateProductCodes, true)) continue;
 
             $ifnullProductCode = sprintf('UNIMA%08d', 1000000 + $count);
             $line .= $product->toSmaregiFormart2(1000000 + $count, $ifnullProductCode).",".$product->getGroupName($groups)."\n";
@@ -80,6 +77,9 @@ class ShopifyProductImportTest2 extends TestCase
 
         // 経理用の分類を取得
         $groups = AccountingGroup::get();
+
+        // バリエーションはあるけれど、単一商品化したい商品名一覧
+        $onceOptions = ShopifyProduct::getVariationOnceProductTitleOptions();
 
         $count = 1;
         $delimiter = ",";
@@ -109,7 +109,6 @@ class ShopifyProductImportTest2 extends TestCase
                 $product->setParentRow($parentProduct);
                 $method = "バ\n";
             }
-            
             $line2 .= $method;
 
             $message = "";
@@ -119,13 +118,24 @@ class ShopifyProductImportTest2 extends TestCase
             if(strlen($product->getProductCode()) > 20) $message .= "×商品コードが20文字より大きい。";
             if($product->title == "") $message .= "×商品名がない";
 
+            $isVariationOnce = false;
+            if(in_array($product->title, array_keys($onceOptions))){
+                if($onceOptions[$product->title]['option_name'] == $product->getOptionName()) {
+                    $isVariationOnce = true;
+                    $product->clearAllOptions();
+                    $message = "⚪︎出力対象";
+                } else {
+                    $message = "⚪︎出力対象から除く";
+                }
+            }
+
             $groupName = $product->getGroupName($groups);
             if($groupName == "") $message .= "×経理用分類が存在しない";
 
-            $line .= $product->toString().",".$message."\n";
+            if($message && $message != "×SKUが重複している") $line .= $product->toString().",".$message."\n";
         }
-        // \Log::debug($line);
-        \Log::debug($line2);
+        \Log::debug($line);
+        // \Log::debug($line2);
         fclose($file_handle);
     }
 
