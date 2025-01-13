@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
+use App\Models\AccountingGroup;
 
 class ShopifyProduct
 {
@@ -54,6 +55,10 @@ class ShopifyProduct
 
     public static function getVariationOnceProductTitleOptions() {
         return config('smaregi.variation_once_product_title_options');
+    }
+
+    public static function getNeedlessProductCodeProductTitles() {
+        return config('smaregi.needless_product_code_product_titles');
     }
 
     public static function loadCsvRow($row) {
@@ -117,7 +122,7 @@ class ShopifyProduct
     }
 
     function getProductCode($ifnullValue = "") {
-        // if($this->sku != null) return $this->sku;
+        if(in_array($this->title, ShopifyProduct::getNeedlessProductCodeProductTitles())) return $ifnullValue;
         if($this->barcode != null) return $this->barcode;
         return $ifnullValue;
     }
@@ -172,6 +177,10 @@ class ShopifyProduct
         if(strlen($this->getProductCode()) > 20) $message .= "×商品コードが20文字より大きい"; // MEMO: 商品コードは20文字以下の制限があるため、その調査用。
         if(!$isVariationOnce && in_array($this->getProductCode(), $duplicateProductCodes)) $message .= "×商品コードが重複している"; // MEMO: 商品コードが重複しているものは除去。
         if(in_array($this->title, ShopifyProduct::getExclutionTitles())) $message .= "⚪︎スマレジ取り込み対象外"; // MEMO: スマレジ取り込み対象外のため、除外。
+        if($message == ""){
+            $groupName = $this->getGroupName(AccountingGroup::get());
+            if($groupName == "") $message .= "×経理用分類が存在しない";
+        }
         if($outputLog && $message) \Log::debug("exclute: ".$this->toString().",".$message);
         return $message == "";
     }
