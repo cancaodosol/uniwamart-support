@@ -25,7 +25,7 @@ class ShopifyProductImportTest2 extends TestCase
     {
         \Log::debug("start: test_example");
         // $csvFile = ".".Storage::url('app/csv/products_export_variation_test_1.csv');
-        $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0105.csv');
+        $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0112.csv');
 
         // 重複した商品コードの取得
         $duplicateProductCodes = $this->get_duplicate_code($csvFile, "ProductCode");
@@ -68,7 +68,7 @@ class ShopifyProductImportTest2 extends TestCase
     {
         \Log::debug("start: test_import_error");
         // $csvFile = ".".Storage::url('app/csv/products_export_variation_test_1.csv');
-        $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0105.csv');
+        $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0112.csv');
 
         // 重複したコードの取得
         $duplicateProductCodes = $this->get_duplicate_code($csvFile, "ProductCode");
@@ -132,7 +132,7 @@ class ShopifyProductImportTest2 extends TestCase
             $groupName = $product->getGroupName($groups);
             if($groupName == "") $message .= "×経理用分類が存在しない";
 
-            if($message && $message != "×SKUが重複している") $line .= $product->toString().",".$message."\n";
+            if($message) $line .= $product->toString().",".$message."\n";
         }
         \Log::debug($line);
         // \Log::debug($line2);
