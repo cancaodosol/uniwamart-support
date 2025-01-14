@@ -111,9 +111,10 @@ class ShopifyProduct
     }
 
     function getTypeCode(){
-        if($this->type == null) return 99; // 未分類（スマレジの部門ID）
-        if($this->type == "Type") return "";
-        return $this->types[$this->type];
+        return 100; // 分類は店頭で設定するため、固定値（スマレジ未分類）
+        // if($this->type == null) return 99; // 未分類（スマレジの部門ID）
+        // if($this->type == "Type") return "";
+        // return $this->types[$this->type];
     }
 
     function getTitle() {
