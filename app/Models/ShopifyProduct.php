@@ -190,11 +190,28 @@ class ShopifyProduct
         return $this->status.",".$this->type.",".$this->handle.",".$this->title.",".$this->sku.",".$this->barcode.",".$this->price.",".$this->getOptionName();
     }
 
+    /**
+     * スマレジ取り込み用（バリエーションなし）
+     */
     function toSmaregiFormart($productId, $ifnullProductCode = "") {
         return $productId.",".$this->getTypeCode().",".$this->getProductCode($ifnullProductCode).",".$this->getTitle().",".$this->price.",,,,";
     }
 
+    /**
+     * スマレジ取り込み用（バリエーションあり）
+     */
     function toSmaregiFormart2($productId, $ifnullProductCode = "") {
         return $productId.",".$this->getTypeCode().",".$this->getProductCode($ifnullProductCode).",".$this->getTitle().",".$this->price.",,,,,".$this->getOptionName();
+    }
+
+    /**
+     * スマレジ取り込み用（SKUセット用）
+     */
+    function toSmaregiFormart3($productId) {
+        return $productId.",".$this->sku;
+    }
+
+    function toLogilessFormart() {
+        return $this->sku.",".$this->getProductCode();
     }
 }

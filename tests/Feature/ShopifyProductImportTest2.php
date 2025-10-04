@@ -55,7 +55,8 @@ class ShopifyProductImportTest2 extends TestCase
             if(!$product->isValidImportSmaregi($duplicateProductCodes, true)) continue;
 
             $ifnullProductCode = sprintf('UNIMA%08d', 1000000 + $count);
-            $line .= $product->toSmaregiFormart2(1000000 + $count, $ifnullProductCode).",".$product->getGroupName($groups)."\n";
+            // $line .= $product->toSmaregiFormart2(1000000 + $count, $ifnullProductCode).",".$product->getGroupName($groups)."\n";
+            $line .= $product->toSmaregiFormart3(1000000 + $count)."\n";
         }
         \Log::debug($line);
         fclose($file_handle);
