@@ -14,7 +14,7 @@ use App\Models\AccountingGroup;
  * create command
  * - sail artisan make:test ShopifyProductImportTest2Eccube
  * execute command
- * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php
+ * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_example
  */
 class ShopifyProductImportTest2Eccube extends TestCase
 {
@@ -25,7 +25,8 @@ class ShopifyProductImportTest2Eccube extends TestCase
     {
         \Log::debug("start: test_example");
         // $csvFile = ".".Storage::url('app/csv/products_export_variation_test_1.csv');
-        $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0113_hand.csv');
+        // $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0113_hand.csv');
+        $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
 
         // 重複した商品コードの取得
         $duplicateProductCodes = $this->get_duplicate_code($csvFile, "ProductCode");
@@ -38,6 +39,31 @@ class ShopifyProductImportTest2Eccube extends TestCase
         $line = "";
         $file_handle = fopen($csvFile, 'r');
         $parentProduct = null;
+
+        $productIds = [];
+        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
+            $product = ShopifyProduct::loadCsvRow($csvRow);
+            $count++;
+
+            if($count > 500) break;
+
+            // バリエーション商品だった場合は、親商品から情報を引き継ぐ。
+            if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
+            if($product->isParent()) $parentProduct = $product;
+            if($product->isEmpty2()) continue;
+            if($product->isVariation() && $parentProduct != null){
+                if($parentProduct->isEmpty2()) continue;
+                $product->setParentRow($parentProduct);
+            }
+
+            // スマレジに登録できる商品なのかチェック
+            if(!$product->isValidImportSmaregi($duplicateProductCodes, false)) continue;
+
+            $line .= $product->toEccubeFormart(1000000 + $count)."\n";
+        }
+        \Log::debug($line);
+        fclose($file_handle);
+    }
         while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
             $product = ShopifyProduct::loadCsvRow($csvRow);
             $count++;

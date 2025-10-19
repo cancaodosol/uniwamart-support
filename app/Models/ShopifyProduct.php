@@ -11,6 +11,7 @@ class ShopifyProduct
 {
     public $handle = "";
     public $title = "";
+    public $type = "";
     public $optionName1 = "";
     public $optionValue1 = "";
     public $optionName2 = "";
@@ -21,6 +22,7 @@ class ShopifyProduct
     public $sku = "";
     public $barcode = "";
     public $status = "";
+    public $imagePosition = "";
 
     private $types = [
         "アクセサリー" => 1,
@@ -76,6 +78,7 @@ class ShopifyProduct
         $result->sku = str_replace("'", "", $row[17]);
         $result->barcode = str_replace("'", "", $row[26]);
         $result->status = $row[56];
+        $result->imagePosition = $row[28];
         return $result;
     }
 
@@ -108,6 +111,10 @@ class ShopifyProduct
     function isVariation(){
         if($this->isValidOption($this->optionName1, $this->optionValue1)) return true;
         return false;
+    }
+
+    function getId(){
+        return $this->handle."____".$this->imagePosition;
     }
 
     function getTypeCode(){
@@ -162,6 +169,18 @@ class ShopifyProduct
         $this->optionValue3 = "";
     }
 
+    function isValidImportEccube($duplicateProductCodes, $outputLog = false)
+    {
+        if(!$this->isValidImportSmaregi($duplicateProductCodes, $outputLog)) return false;
+
+        $message = "";
+        if(str_contains($this->getTitle(), "コーヒー") || str_contains($this->getTitle(), "シロフク")) {
+            $message .= "⚪シロフク商品は取り込み対象外";
+        }
+        if($outputLog && $message) \Log::debug("exclute: ".$this->toString().",".$message);
+        return $message == "";
+    }
+
     function isValidImportSmaregi($duplicateProductCodes, $outputLog = false)
     {
         $message = "";
@@ -211,7 +230,33 @@ class ShopifyProduct
         return $productId.",".$this->sku;
     }
 
+    /**
+     * ロジレス取り込み用（SKU、商品コード紐付け用）
+     */
     function toLogilessFormart() {
         return $this->sku.",".$this->getProductCode();
+    }
+
+    const ECCUBE__PRODUCT_ID__NULL = '';
+    const ECCUBE__PUBLISH_STATUS__PUBLISH = '1';
+    const ECCUBE__SALE_TYPE__TYPE_A = '1';
+    const ECCUBE__CLASS_ID__NULL = '';
+    const ECCUBE__PRODUCT_CODE__NULL = ''; 
+
+    /**
+     * ECCUBE取り込み用（バリエーションなし）
+     */
+    function toEccubeFormat($productId, $ifnullProductCode = "") {
+        return sprintf(
+            "%s,%s,%s,,,,,,0,,,,%s,%s,%s,,%s,,1,,,%d,,,",
+            self::ECCUBE__PRODUCT_ID__NULL,
+            self::ECCUBE__PUBLISH_STATUS__PUBLISH,
+            $this->getTitle(),
+            self::ECCUBE__SALE_TYPE__TYPE_A,
+            self::ECCUBE__CLASS_ID__NULL,
+            self::ECCUBE__CLASS_ID__NULL,
+            $this->getProductCode(),
+            $this->price,
+        );
     }
 }
