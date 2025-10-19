@@ -64,6 +64,27 @@ class ShopifyProductImportTest2Eccube extends TestCase
         \Log::debug($line);
         fclose($file_handle);
     }
+
+    /**
+     * Shopify商品データから、バリエーションを抽出し、ECCUBEの商品規格フォーマットで出力する。
+     * 規格としての登録、規格分類としての登録の２段階が必要。
+     * 
+     * execute command
+     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_cecube_classes
+     */
+    public function test_export_cecube_classes(): void
+    {
+        \Log::debug("start: test_export_cecube_classes");
+        $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
+
+        $count = 1;
+        $delimiter = ",";
+        $line = "";
+        $file_handle = fopen($csvFile, 'r');
+        $parentProduct = null;
+
+        $variationProduts = [];
+
         while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
             $product = ShopifyProduct::loadCsvRow($csvRow);
             $count++;
@@ -77,133 +98,89 @@ class ShopifyProductImportTest2Eccube extends TestCase
                 $product->setParentRow($parentProduct);
             }
 
-            // スマレジに登録できる商品なのかチェック
-            if(!$product->isValidImportSmaregi($duplicateProductCodes, true)) continue;
+            // シロフク商品は移行しない
+            if(str_contains($product->getTitle(), "コーヒー") || str_contains($product->getTitle(), "シロフク")) continue;
 
-            $ifnullProductCode = sprintf('UNIMA%08d', 1000000 + $count);
-            // $line .= $product->toSmaregiFormart2(1000000 + $count, $ifnullProductCode).",".$product->getGroupName($groups)."\n";
-            $line .= $product->toSmaregiFormart3(1000000 + $count)."\n";
+            // バリエーション商品（規格分類あり商品）の抽出
+            if($product->isVariation()){
+                $variationProduts[] = $product;
+            }
+
+            $line .= $product->toEccubeFormat(1000000 + $count)."\n";
         }
-        \Log::debug($line);
+
+        // バリエーション商品（規格分類あり商品）の書き出し
+        $productLine = "";
+        foreach($variationProduts as $product){
+            $productLine .= $product->toEccubeClassTransferFormat(1000000 + $count)."\n";  
+        }
+
+        // \Log::debug($line);
+        \Log::debug($productLine);
+
+        // // 商品規格名と、規格分類を抽出
+        $productClasses1 = [];
+        $productClasses2 = [];
+        foreach($variationProduts as $product){
+            if($product->optionName1 != null && !array_key_exists($product->optionName1, $productClasses1)){
+                $productClasses1[$product->optionName1] = [];
+            }
+            if($product->optionName1 != null && !in_array($product->optionValue1, $productClasses1[$product->optionName1])){
+                $productClasses1[$product->optionName1][] = $product->optionValue1;
+            }
+            if($product->optionName2 != null && !array_key_exists($product->optionName2, $productClasses2)){
+                $productClasses2[$product->optionName2] = [];
+            }
+            if($product->optionName2 != null && !in_array($product->optionValue2, $productClasses2[$product->optionName2])){
+                $productClasses2[$product->optionName2][] = $product->optionValue2;
+            }  
+        }
+
+        $classesId = 7; // 商品規格IDの開始番号（ECCubeに登録されている規格IDを確認して、セット。）
+        $classesLine = "";
+        $classesCategoryLine = "";
+        foreach($productClasses1 as $className => $classValues){
+            $classesLine .= implode(",", [
+                "",
+                $className,
+                $className,
+                "0",
+            ])."\n";
+            foreach($classValues as $classValue){
+                $classesCategoryLine .= implode(",", [
+                    $classesId,
+                    $className,
+                    "",
+                    $classValue,
+                    $classValue,
+                    "0",
+                ])."\n";
+            }
+            $classesId++;
+        }
+        foreach($productClasses2 as $className => $classValues){
+            $classesLine .= implode(",", [
+                "",
+                $className,
+                $className,
+                "0",
+            ])."\n";
+            foreach($classValues as $classValue){
+                $classesCategoryLine .= implode(",", [
+                    $classesId,
+                    $className,
+                    "",
+                    $classValue,
+                    $classValue,
+                    "0",
+                ])."\n";
+            }
+            $classesId++;
+        }
+        \Log::debug($classesLine);
+        \Log::debug($classesCategoryLine);
+
         fclose($file_handle);
     }
 
-    /**
-     * A basic feature test example.
-     */
-    public function test_import_error(): void
-    {
-        \Log::debug("start: test_import_error");
-        // $csvFile = ".".Storage::url('app/csv/products_export_variation_test_1.csv');
-        $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0113_hand.csv');
-
-        // 重複したコードの取得
-        $duplicateProductCodes = $this->get_duplicate_code($csvFile, "ProductCode");
-        $duplicateSkus = $this->get_duplicate_code($csvFile, "Sku");
-        $duplicateBarcodes = $this->get_duplicate_code($csvFile, "Barcode");
-
-        // 経理用の分類を取得
-        $groups = AccountingGroup::get();
-
-        // バリエーションはあるけれど、単一商品化したい商品名一覧
-        $onceOptions = ShopifyProduct::getVariationOnceProductTitleOptions();
-
-        $count = 1;
-        $delimiter = ",";
-        $line = "";
-        $line2 = "";
-        $file_handle = fopen($csvFile, 'r');
-
-        $parentProduct = null;
-        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
-            $product = ShopifyProduct::loadCsvRow($csvRow);
-            $count++;
-            if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
-            $method = "";
-            if($product->isParent()) {
-                $parentProduct = $product;
-                $method = "親\n";
-            }
-            if($product->isEmpty2()) {
-                $line2 .= "除\n";
-                continue;
-            }
-            if($product->isVariation() && $parentProduct != null){
-                if($parentProduct->isEmpty2()) {
-                    $line2 .= "親除\n";
-                    continue;
-                }
-                $product->setParentRow($parentProduct);
-                $method = "バ\n";
-            }
-            $line2 .= $method;
-
-            $message = "";
-            if(in_array($product->sku, $duplicateSkus)) $message .= "×SKUが重複している";
-            if(in_array($product->barcode, $duplicateBarcodes)) $message .= "×バーコードが重複している";
-            if(in_array($product->getProductCode(), $duplicateProductCodes)) $message .= "×商品コードが重複している";
-            if(strlen($product->getProductCode()) > 20) $message .= "×商品コードが20文字より大きい。";
-            if($product->title == "") $message .= "×商品名がない";
-
-            $isVariationOnce = false;
-            if(in_array($product->title, array_keys($onceOptions))){
-                if($onceOptions[$product->title]['option_name'] == $product->getOptionName()) {
-                    $isVariationOnce = true;
-                    $product->clearAllOptions();
-                    $message = "⚪︎出力対象";
-                } else {
-                    $message = "⚪︎出力対象から除く";
-                }
-            }
-
-            $groupName = $product->getGroupName($groups);
-            if($groupName == "") $message .= "×経理用分類が存在しない";
-
-            if($message) $line .= $product->toString().",".$message."\n";
-        }
-        \Log::debug($line);
-        // \Log::debug($line2);
-        fclose($file_handle);
-    }
-
-    /**
-     * A basic feature test example.
-     */
-    private function get_duplicate_code($csvFile, $targetColumnName = "ProductCode"): array
-    {
-        \Log::debug("start: test_duplicate_product_code");
-
-        $count = 1;
-        $delimiter = ",";
-        $line = "";
-        $file_handle = fopen($csvFile, 'r');
-        $targetColumnValues = [];
-        $duplicateTargetColumnValues = [];
-        $parentProduct = null;
-        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
-            $product = ShopifyProduct::loadCsvRow($csvRow);
-            if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
-            if($product->isParent()) $parentProduct = $product;
-            if($product->isEmpty2()) continue;
-            if($product->isVariation() && $parentProduct != null){
-                if($parentProduct->isEmpty2()) continue;
-                $product->setParentRow($parentProduct);
-            }
-            $targetColumnValue = $targetColumnName == "ProductCode" ? $product->getProductCode() : 
-                ($targetColumnName == "Barcode" ? $product->barcode : 
-                ($targetColumnName == "Sku" ? $product->sku : 
-                ($targetColumnName == "Handle" ? $product->handle : "")));
-            if($targetColumnValue == "") continue;
-            if(in_array($targetColumnValue, $targetColumnValues)){
-                if(in_array($targetColumnValue, $duplicateTargetColumnValues)) continue;
-                $duplicateTargetColumnValues[] = $targetColumnValue;
-                $line .= $targetColumnValue."\n";
-                continue;
-            }
-            $targetColumnValues[] = $targetColumnValue;
-        }
-        fclose($file_handle);
-
-        return $duplicateTargetColumnValues;
-    }
 }

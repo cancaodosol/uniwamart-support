@@ -259,4 +259,20 @@ class ShopifyProduct
             $this->price,
         );
     }
+
+    /**
+     * ECCUBE 商品規格 取り込み用
+     */
+    function toEccubeClassTransferFormat() {
+        return sprintf(
+            "%s,%s,%d,,%s,%s,,%s,%s",
+            $this->getTitle(),
+            $this->getProductCode(),
+            $this->price,
+            $this->optionName1,
+            $this->optionValue1,
+            $this->optionName2,
+            $this->optionValue2,
+        );
+    }
 }
