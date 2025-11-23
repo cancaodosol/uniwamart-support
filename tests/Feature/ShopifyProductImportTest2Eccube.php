@@ -27,9 +27,7 @@ class ShopifyProductImportTest2Eccube extends TestCase
         // $csvFile = ".".Storage::url('app/csv/products_export_variation_test_1.csv');
         // $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0113_hand.csv');
         $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
-
-        // 重複した商品コードの取得
-        $duplicateProductCodes = $this->get_duplicate_code($csvFile, "ProductCode");
+        $duplicateProductCodes = [];
 
         // 経理用の分類を取得
         $groups = AccountingGroup::get();
@@ -45,7 +43,7 @@ class ShopifyProductImportTest2Eccube extends TestCase
             $product = ShopifyProduct::loadCsvRow($csvRow);
             $count++;
 
-            if($count > 500) break;
+            // if($count > 500) break;
 
             // バリエーション商品だった場合は、親商品から情報を引き継ぐ。
             if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
@@ -58,8 +56,9 @@ class ShopifyProductImportTest2Eccube extends TestCase
 
             // スマレジに登録できる商品なのかチェック
             if(!$product->isValidImportSmaregi($duplicateProductCodes, false)) continue;
+            if($product->isVariation()) continue;
 
-            $line .= $product->toEccubeFormart(1000000 + $count)."\n";
+            $line .= $product->toEccubeFormat(1000000 + $count, [])."\n";
         }
         \Log::debug($line);
         fclose($file_handle);
@@ -76,6 +75,7 @@ class ShopifyProductImportTest2Eccube extends TestCase
     {
         \Log::debug("start: test_export_cecube_classes");
         $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
+        $variationProduts2 = $this->get_variation_products();
 
         $count = 1;
         $delimiter = ",";
@@ -105,14 +105,12 @@ class ShopifyProductImportTest2Eccube extends TestCase
             if($product->isVariation()){
                 $variationProduts[] = $product;
             }
-
-            $line .= $product->toEccubeFormat(1000000 + $count)."\n";
         }
 
         // バリエーション商品（規格分類あり商品）の書き出し
         $productLine = "";
         foreach($variationProduts as $product){
-            $productLine .= $product->toEccubeClassTransferFormat(1000000 + $count)."\n";  
+            $productLine .= $product->toEccubeFormat(1000000 + $count, $variationProduts2)."\n";  
         }
 
         // \Log::debug($line);

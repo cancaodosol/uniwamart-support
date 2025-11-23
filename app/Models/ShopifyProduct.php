@@ -66,7 +66,7 @@ class ShopifyProduct
     public static function loadCsvRow($row) {
         $result = new ShopifyProduct();
         $result->handle = $row[0];
-        $result->title = $row[1];
+        $result->title = trim($row[1]);
         $result->type = $row[5];
         $result->optionName1 = $row[8];
         $result->optionValue1 = $row[9];
@@ -84,7 +84,7 @@ class ShopifyProduct
 
     function setParentRow($product){
         $this->status = $product->status;
-        $this->title = $product->title;
+        $this->title = trim($product->title);
         $this->type = $product->type;
         $this->optionName1 = $product->optionName1;
         $this->optionName2 = $product->optionName2;
@@ -246,33 +246,68 @@ class ShopifyProduct
     /**
      * ECCUBE取り込み用（バリエーションなし）
      */
-    function toEccubeFormat($productId, $ifnullProductCode = "") {
-        return sprintf(
-            "%s,%s,%s,,,,,,0,,,,%s,%s,%s,,%s,,1,,,%d,,,",
+    function toEccubeFormat($productId, $variationProduts) {
+        $classId1 = self::ECCUBE__CLASS_ID__NULL;
+        foreach($variationProduts as $vp){
+            if($vp->title == $this->getTitle() && $vp->option1_value == $this->optionValue1){
+                $classId1 = $vp->option1_value_id;
+                break;
+            }
+        }
+        $classId2 = self::ECCUBE__CLASS_ID__NULL;
+        foreach($variationProduts as $vp){
+            if($vp->title == $this->getTitle() && $vp->option2_value == $this->optionValue2){
+                $classId2 = $vp->option2_value_id;
+                break;
+            }
+        }
+        return implode(",", [
             self::ECCUBE__PRODUCT_ID__NULL,
             self::ECCUBE__PUBLISH_STATUS__PUBLISH,
             $this->getTitle(),
+            "",
+            "",
+            "",
+            "",
+            "",
+            0,
+            "",
+            "",
+            "",
             self::ECCUBE__SALE_TYPE__TYPE_A,
-            self::ECCUBE__CLASS_ID__NULL,
-            self::ECCUBE__CLASS_ID__NULL,
+            $classId1,
+            $classId2,
+            "",
             $this->getProductCode(),
+            "",
+            1,
+            "",
+            "",
             $this->price,
-        );
+            "",
+            "",
+            "",
+            $this->sku,
+            "0",
+            "",
+            "",
+        ]);
     }
 
     /**
      * ECCUBE 商品規格 取り込み用
      */
     function toEccubeClassTransferFormat() {
-        return sprintf(
-            "%s,%s,%d,,%s,%s,,%s,%s",
+        return implode(",", [
             $this->getTitle(),
             $this->getProductCode(),
             $this->price,
+            "",
             $this->optionName1,
             $this->optionValue1,
+            "",
             $this->optionName2,
             $this->optionValue2,
-        );
+        ]);
     }
 }
