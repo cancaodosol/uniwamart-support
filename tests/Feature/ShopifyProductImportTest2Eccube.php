@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 use App\Models\ShopifyProduct;
+use App\Models\EccubeClassCategory;
 use App\Models\AccountingGroup;
+use App\Models\EccubeProduct;
 
 /** 
  * create command
@@ -116,6 +118,8 @@ class ShopifyProductImportTest2Eccube extends TestCase
         // \Log::debug($line);
         \Log::debug($productLine);
 
+        return;
+
         // // 商品規格名と、規格分類を抽出
         $productClasses1 = [];
         $productClasses2 = [];
@@ -181,4 +185,44 @@ class ShopifyProductImportTest2Eccube extends TestCase
         fclose($file_handle);
     }
 
+    /**
+     * ECCUBEの商品規格分類情報をバインドする。
+     */
+    public function get_variation_products(): array
+    {
+        \Log::debug("start: test_bind_cecube_classes");
+        $csvFile = ".".Storage::url('app/csv/smaregi/規格分類テーブル.csv');
+        $pCsvFile = ".".Storage::url('app/csv/smaregi/class_category_仕分け用.csv');
+        $ppCsvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
+
+        $delimiter = ",";
+        $file_handle = fopen($csvFile, 'r');
+        $categories = [];
+        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
+            $ca = EccubeClassCategory::loadCsvRow($csvRow);
+            $categories[$ca->class_name_id][$ca->name] = $ca->id;
+        }
+        fclose($file_handle);
+
+
+        $file_handle = fopen($pCsvFile, 'r');
+        $products = [];
+        $plusIdIndex = 31;
+        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
+            if($csvRow[1] == "Variant Barcode") continue;
+            $p = EccubeProduct::loadCsvRow($csvRow);
+            $p->addIdIndex($plusIdIndex);
+
+            foreach($categories[$p->option1_name_id] as $name => $id){
+                if($name == $p->option1_value){
+                    $p->option1_value_id = $id;
+                }
+            }
+
+            $products[] = $p;
+        }
+        fclose($file_handle);
+
+        return $products;
+    }
 }
