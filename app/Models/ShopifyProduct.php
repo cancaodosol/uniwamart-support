@@ -22,6 +22,7 @@ class ShopifyProduct
     public $sku = "";
     public $barcode = "";
     public $status = "";
+    public $imageSrcs = [];
     public $imagePosition = "";
 
     private $types = [
@@ -78,6 +79,7 @@ class ShopifyProduct
         $result->sku = str_replace("'", "", $row[17]);
         $result->barcode = str_replace("'", "", $row[26]);
         $result->status = $row[56];
+        if($row[27]) $result->imageSrcs[] = self::transferImageFileName($row[27]);
         $result->imagePosition = $row[28];
         return $result;
     }
@@ -111,6 +113,22 @@ class ShopifyProduct
     function isVariation(){
         if($this->isValidOption($this->optionName1, $this->optionValue1)) return true;
         return false;
+    }
+
+    function addImageSrcs($imageSrcs){
+        foreach($imageSrcs as $imageSrc){
+            $this->imageSrcs[] = self::transferImageFileName($imageSrc);
+        }
+        return $this;
+    }
+
+    function clearImageSrcs(){
+        $this->imageSrcs = [];
+    }
+
+    static function transferImageFileName($url){
+        $path = parse_url($url, PHP_URL_PATH);
+        return basename($path);
     }
 
     function getId(){
@@ -271,7 +289,7 @@ class ShopifyProduct
             "",
             "",
             0,
-            "",
+            '"'.implode(",", $this->imageSrcs).'"',
             "",
             "",
             self::ECCUBE__SALE_TYPE__TYPE_A,

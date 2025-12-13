@@ -50,12 +50,16 @@ class ShopifyProductImportTest2Eccube extends TestCase
             // バリエーション商品だった場合は、親商品から情報を引き継ぐ。
             if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
             if($product->isParent()) $parentProduct = $product;
-            if($product->isEmpty2()) continue;
+            if($product->isEmpty2()){
+                if(!$product->isParent()) $parentProduct->addImageSrcs($product->imageSrcs);
+                continue;
+            }
             if($product->isVariation() && $parentProduct != null){
                 if($parentProduct->isEmpty2()) continue;
                 $product->setParentRow($parentProduct);
+                $parentProduct->addImageSrcs($product->imageSrcs);
+                $product->clearImageSrcs();
             }
-
             // スマレジに登録できる商品なのかチェック
             if(!$product->isValidImportSmaregi($duplicateProductCodes, false)) continue;
             if($product->isVariation()) continue;
