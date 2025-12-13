@@ -9,6 +9,7 @@ use App\Models\AccountingGroup;
 
 class ShopifyProduct
 {
+    public $rowNo = "";
     public $handle = "";
     public $title = "";
     public $type = "";
@@ -67,7 +68,7 @@ class ShopifyProduct
     public static function loadCsvRow($row) {
         $result = new ShopifyProduct();
         $result->handle = $row[0];
-        $result->title = trim($row[1]);
+        $result->title = mb_trim($row[1]);
         $result->type = $row[5];
         $result->optionName1 = $row[8];
         $result->optionValue1 = $row[9];
@@ -86,7 +87,7 @@ class ShopifyProduct
 
     function setParentRow($product){
         $this->status = $product->status;
-        $this->title = trim($product->title);
+        $this->title = mb_trim($product->title);
         $this->type = $product->type;
         $this->optionName1 = $product->optionName1;
         $this->optionName2 = $product->optionName2;
@@ -113,6 +114,11 @@ class ShopifyProduct
     function isVariation(){
         if($this->isValidOption($this->optionName1, $this->optionValue1)) return true;
         return false;
+    }
+
+    function setRowNo(int $rowNo){
+        $this->rowNo = $rowNo;
+        return $this;
     }
 
     function addImageSrcs($imageSrcs){
@@ -189,9 +195,12 @@ class ShopifyProduct
 
     function isValidImportEccube($duplicateProductCodes, $outputLog = false)
     {
-        if(!$this->isValidImportSmaregi($duplicateProductCodes, $outputLog)) return false;
-
         $message = "";
+        $isVariationOnce = false;
+        $onceOptions = ShopifyProduct::getVariationOnceProductTitleOptions();
+        if(strlen($this->getProductCode()) > 20) $message .= "×商品コードが20文字より大きい"; // MEMO: 商品コードは20文字以下の制限があるため、その調査用。
+        if(!$isVariationOnce && in_array($this->getProductCode(), $duplicateProductCodes)) $message .= "×商品コードが重複している"; // MEMO: 商品コードが重複しているものは除去。
+
         if(str_contains($this->getTitle(), "コーヒー") || str_contains($this->getTitle(), "シロフク")) {
             $message .= "⚪シロフク商品は取り込み対象外";
         }
@@ -317,11 +326,15 @@ class ShopifyProduct
      */
     function toEccubeClassTransferFormat() {
         return implode(",", [
+            $this->rowNo,
             $this->getTitle(),
             $this->getProductCode(),
-            $this->price,
+            "",
+            "",
             "",
             $this->optionName1,
+            $this->optionName1,
+            "",
             $this->optionValue1,
             "",
             $this->optionName2,

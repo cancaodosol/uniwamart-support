@@ -20,19 +20,10 @@ use App\Models\EccubeProduct;
  */
 class ShopifyProductImportTest2Eccube extends TestCase
 {
-    /**
-     * A basic feature test example.
-     */
-    public function test_example(): void
+    private function get_products(): array
     {
-        \Log::debug("start: test_example");
-        // $csvFile = ".".Storage::url('app/csv/products_export_variation_test_1.csv');
-        // $csvFile = ".".Storage::url('app/csv/products_export_1_AND_2_0113_hand.csv');
         $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
         $duplicateProductCodes = [];
-
-        // 経理用の分類を取得
-        $groups = AccountingGroup::get();
 
         $count = 1;
         $delimiter = ",";
@@ -40,12 +31,11 @@ class ShopifyProductImportTest2Eccube extends TestCase
         $file_handle = fopen($csvFile, 'r');
         $parentProduct = null;
 
-        $productIds = [];
+        $products = [];
         while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
             $product = ShopifyProduct::loadCsvRow($csvRow);
+            $product->setRowNo($count);
             $count++;
-
-            // if($count > 500) break;
 
             // バリエーション商品だった場合は、親商品から情報を引き継ぐ。
             if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
@@ -60,14 +50,59 @@ class ShopifyProductImportTest2Eccube extends TestCase
                 $parentProduct->addImageSrcs($product->imageSrcs);
                 $product->clearImageSrcs();
             }
-            // スマレジに登録できる商品なのかチェック
-            if(!$product->isValidImportSmaregi($duplicateProductCodes, false)) continue;
-            if($product->isVariation()) continue;
 
-            $line .= $product->toEccubeFormat(1000000 + $count, [])."\n";
+            $products[] = $product;
         }
-        \Log::debug($line);
+
         fclose($file_handle);
+
+        return $products;
+    }
+
+    /**
+     * A basic feature test example.
+     */
+    public function test_example(): void
+    {
+        \Log::debug("start: test_example");
+
+        $products = $this->get_products();
+        $duplicateProductCodes = [];
+
+        $line = "";
+        foreach($products as $product){
+            // スマレジに登録できる商品なのかチェック
+            if(!$product->isValidImportSmaregi($duplicateProductCodes, true)) continue;
+            if($product->isVariation()) continue;
+            $line .= $product->toEccubeFormat(1000000 + $product->rowNo, [])."\n";
+        }
+
+        \Log::debug($line);
+    }
+
+    /**
+     * Shopify商品データから、バリエーション商品を抽出して一覧にする。
+     * このデータを元に、step1,step2...で、バリエーション商品のインポートデータを作成する。
+     * 
+     * execute command
+     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_cecube_classes__step0
+     */
+    public function test_export_cecube_classes__step0(): void
+    {
+        \Log::debug("start: test_export_cecube_classes__step0");
+
+        // バリエーション商品（規格分類あり商品）の抽出
+        $variationProduts = [];
+        $allproducts = $this->get_products();
+
+        $line = "";
+        foreach($allproducts as $product){
+            if($product->isVariation() && $product->isValidImportEccube([], true)){
+                $line .= $product->toEccubeClassTransferFormat()."\n";
+            }
+        }
+
+        \Log::debug($line);
     }
 
     /**
@@ -75,54 +110,20 @@ class ShopifyProductImportTest2Eccube extends TestCase
      * 規格としての登録、規格分類としての登録の２段階が必要。
      * 
      * execute command
-     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_cecube_classes
+     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_cecube_classes__step1
      */
-    public function test_export_cecube_classes(): void
+    public function test_export_cecube_classes__step1(): void
     {
-        \Log::debug("start: test_export_cecube_classes");
-        $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
-        $variationProduts2 = $this->get_variation_products();
+        \Log::debug("start: test_export_cecube_classes__step1");
 
-        $count = 1;
-        $delimiter = ",";
-        $line = "";
-        $file_handle = fopen($csvFile, 'r');
-        $parentProduct = null;
-
+        // バリエーション商品（規格分類あり商品）の抽出
         $variationProduts = [];
-
-        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
-            $product = ShopifyProduct::loadCsvRow($csvRow);
-            $count++;
-
-            // バリエーション商品だった場合は、親商品から情報を引き継ぐ。
-            if($parentProduct != null && $product->handle != $parentProduct->handle) $parentProduct = null;
-            if($product->isParent()) $parentProduct = $product;
-            if($product->isEmpty2()) continue;
-            if($product->isVariation() && $parentProduct != null){
-                if($parentProduct->isEmpty2()) continue;
-                $product->setParentRow($parentProduct);
-            }
-
-            // シロフク商品は移行しない
-            if(str_contains($product->getTitle(), "コーヒー") || str_contains($product->getTitle(), "シロフク")) continue;
-
-            // バリエーション商品（規格分類あり商品）の抽出
+        $allproducts = $this->get_products();
+        foreach($allproducts as $product){
             if($product->isVariation()){
                 $variationProduts[] = $product;
             }
         }
-
-        // バリエーション商品（規格分類あり商品）の書き出し
-        $productLine = "";
-        foreach($variationProduts as $product){
-            $productLine .= $product->toEccubeFormat(1000000 + $count, $variationProduts2)."\n";  
-        }
-
-        // \Log::debug($line);
-        \Log::debug($productLine);
-
-        return;
 
         // // 商品規格名と、規格分類を抽出
         $productClasses1 = [];
@@ -142,7 +143,7 @@ class ShopifyProductImportTest2Eccube extends TestCase
             }  
         }
 
-        $classesId = 7; // 商品規格IDの開始番号（ECCubeに登録されている規格IDを確認して、セット。）
+        $classesId = 3; // 商品規格IDの開始番号（ECCubeに登録されている規格IDを確認して、セット。）
         $classesLine = "";
         $classesCategoryLine = "";
         foreach($productClasses1 as $className => $classValues){
@@ -185,8 +186,59 @@ class ShopifyProductImportTest2Eccube extends TestCase
         }
         \Log::debug($classesLine);
         \Log::debug($classesCategoryLine);
+    }
 
+    /**
+     * ECCUBEに登録された規格分類テーブルデータをもとに、規格分類のインポートCSVを作成する。
+     * 
+     * execute command
+     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_cecube_classes__step2
+     */
+    public function test_export_cecube_classes__step2(): void
+    {
+        \Log::debug("start: test_export_cecube_classes__step2");
+        $csvFile = ".".Storage::url('app/csv/smaregi/規格分類テーブル.csv');
+
+        $delimiter = ",";
+        $file_handle = fopen($csvFile, 'r');
+        $categories = [];
+        while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
+            $ca = EccubeClassCategory::loadCsvRow($csvRow);
+            $categories[] = $ca;
+        }
         fclose($file_handle);
+
+        $line = "";
+        foreach($categories as $category){
+            $line .= $category->toString()."\n";
+        }
+
+        \Log::debug($line);
+    }
+
+    /**
+     * Step1, Step2をもとに、ECCUBEに商品規格・商品規格分類を登録したあと、
+     * この処理で、商品と商品規格を紐づけたインポート用CSVを作成する。
+     * 
+     * execute command
+     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_cecube_classes__step3
+     */
+    public function test_export_cecube_classes__step3(): void
+    {
+        \Log::debug("start: test_export_cecube_classes__step3");
+        $variationProduts2 = $this->get_variation_products();
+
+        // バリエーション商品（規格分類あり商品）の抽出
+        $line = "";
+        $allproducts = $this->get_products();
+        foreach($allproducts as $product){
+            if(!$product->isVariation()) continue;
+            // ECCUBEに登録できる商品なのかチェック
+            if(!$product->isValidImportEccube([], true)) continue;
+            $line .= $product->toEccubeFormat(1000000 + $product->rowNo, $variationProduts2)."\n";
+        }
+
+        \Log::debug($line);
     }
 
     /**
@@ -197,7 +249,6 @@ class ShopifyProductImportTest2Eccube extends TestCase
         \Log::debug("start: test_bind_cecube_classes");
         $csvFile = ".".Storage::url('app/csv/smaregi/規格分類テーブル.csv');
         $pCsvFile = ".".Storage::url('app/csv/smaregi/class_category_仕分け用.csv');
-        $ppCsvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
 
         $delimiter = ",";
         $file_handle = fopen($csvFile, 'r');
@@ -208,10 +259,9 @@ class ShopifyProductImportTest2Eccube extends TestCase
         }
         fclose($file_handle);
 
-
         $file_handle = fopen($pCsvFile, 'r');
         $products = [];
-        $plusIdIndex = 31;
+        $plusIdIndex = 2;
         while ($csvRow = fgetcsv($file_handle, null, $delimiter)) {
             if($csvRow[1] == "Variant Barcode") continue;
             $p = EccubeProduct::loadCsvRow($csvRow);

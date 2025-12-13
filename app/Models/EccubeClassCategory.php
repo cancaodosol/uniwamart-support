@@ -26,12 +26,18 @@ class EccubeClassCategory
         return $result;
     }
 
+    public function getClassNameId() {
+        if(is_numeric($this->class_name_id)) return $this->class_name_id - 29;
+        return $this->class_name_id;
+    }
+
     public function toString() {
-        return implode(", ", [
-            $this->id,
-            $this->class_name_id,
+        return implode(",", [
+            $this->getClassNameId(),
+            "",
             $this->backed_name,
             $this->name,
+            "",
         ]);
     }
 }

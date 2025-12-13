@@ -44,7 +44,7 @@ class EccubeProduct
 
     public function addIdIndex($index) {
         $this->option1_name_id = $this->option1_name_id + $index;
-        if($this->option1_name_id >= 45) $this->option1_name_id++;
+        if($this->option1_name_id >= 16) $this->option1_name_id++;
         return $this;
     }
 
