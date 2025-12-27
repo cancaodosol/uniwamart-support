@@ -13,6 +13,7 @@ class ShopifyProduct
     public $handle = "";
     public $title = "";
     public $type = "";
+    public $categoryId = "";
     public $optionName1 = "";
     public $optionValue1 = "";
     public $optionName2 = "";
@@ -25,29 +26,42 @@ class ShopifyProduct
     public $status = "";
     public $imageSrcs = [];
     public $imagePosition = "";
+    public $isParent = false;
 
-    private $types = [
-        "アクセサリー" => 1,
-        "キッチン" => 2,
-        "バス&トイレ" => 3,
-        "バス・トイレ" => 3,
-        "ファッション" => 4,
-        "ブランド別" => 5,
-        "ヘルス＆ビューティー" => 6,
-        "リビング" => 7,
-        "寝室" => 8,
-        "屋外" => 9,
-        "日用品" => 10,
-        "書籍" => 11,
-        "環境改善" => 12,
-        "福袋" => 13,
-        "美容・健康" => 14,
-        "衣類" => 15,
-        "限定公開" => 16,
-        "食品" => 17,
-        "食器" => 18,
-        "香り" => 19,
-        "giftit" => 20,
+    private $csvColumnIndex = [
+        "handle" => 0,
+        "title" => 1,
+        "type" => 5,
+        "optionName1" => 8,
+        "optionValue1" => 9,
+        "optionName2" => 11,
+        "optionValue2" => 12,
+        "optionName3" => 14,
+        "optionValue3" => 15,
+        "price" => 22,
+        "sku" => 17,
+        "barcode" => 26,
+        "status" => 56,
+        "imageSrcs" => 27,
+        "imagePosition" => 28,
+    ];
+
+    private $csvColumnIndex2025 = [
+        "handle" => 0,
+        "title" => 1,
+        "type" => 5,
+        "optionName1" => 8,
+        "optionValue1" => 9,
+        "optionName2" => 11,
+        "optionValue2" => 12,
+        "optionName3" => 14,
+        "optionValue3" => 15,
+        "price" => 22,
+        "sku" => 17,
+        "barcode" => 30,
+        "status" => 60,
+        "imageSrcs" => 31,
+        "imagePosition" => 32,
     ];
 
     function __construct() {
@@ -67,21 +81,22 @@ class ShopifyProduct
 
     public static function loadCsvRow($row) {
         $result = new ShopifyProduct();
-        $result->handle = $row[0];
-        $result->title = mb_trim($row[1]);
-        $result->type = $row[5];
-        $result->optionName1 = $row[8];
-        $result->optionValue1 = $row[9];
-        $result->optionName2 = $row[11];
-        $result->optionValue2 = $row[12];
-        $result->optionName3 = $row[14];
-        $result->optionValue3 = $row[15];
-        $result->price = $row[22];
-        $result->sku = str_replace("'", "", $row[17]);
-        $result->barcode = str_replace("'", "", $row[26]);
-        $result->status = $row[56];
-        if($row[27]) $result->imageSrcs[] = self::transferImageFileName($row[27]);
-        $result->imagePosition = $row[28];
+        $result->handle = $row[$result->csvColumnIndex2025["handle"]];
+        $result->title = mb_trim($row[$result->csvColumnIndex2025["title"]]);
+        $result->type = $row[$result->csvColumnIndex2025["type"]];
+        $result->optionName1 = $row[$result->csvColumnIndex2025["optionName1"]];
+        $result->optionValue1 = $row[$result->csvColumnIndex2025["optionValue1"]];
+        $result->optionName2 = $row[$result->csvColumnIndex2025["optionName2"]];
+        $result->optionValue2 = $row[$result->csvColumnIndex2025["optionValue2"]];
+        $result->optionName3 = $row[$result->csvColumnIndex2025["optionName3"]];
+        $result->optionValue3 = $row[$result->csvColumnIndex2025["optionValue3"]];
+        $result->price = $row[$result->csvColumnIndex2025["price"]];
+        $result->sku = str_replace("'", "", $row[$result->csvColumnIndex2025["sku"]]);
+        $result->barcode = str_replace("'", "", $row[$result->csvColumnIndex2025["barcode"]]);
+        $result->status = $row[$result->csvColumnIndex2025["status"]];
+        if($row[$result->csvColumnIndex2025["imageSrcs"]]) $result->imageSrcs[] = $row[$result->csvColumnIndex2025["imageSrcs"]];
+        $result->imagePosition = $row[$result->csvColumnIndex2025["imagePosition"]];
+        $result->isParent = ($result->handle != null && $result->title != null);
         return $result;
     }
 
@@ -92,6 +107,12 @@ class ShopifyProduct
         $this->optionName1 = $product->optionName1;
         $this->optionName2 = $product->optionName2;
         $this->optionName3 = $product->optionName3;
+    }
+
+    function setCategory($categories){
+        if(array_key_exists($this->type, $categories)){
+            $this->categoryId = $categories[$this->type];
+        }
     }
 
     function isEmpty(){
@@ -107,8 +128,7 @@ class ShopifyProduct
     }
 
     function isParent(){
-        if($this->handle != null && $this->title != null) return true;
-        return false;
+        return $this->isParent;
     }
 
     function isVariation(){
@@ -123,9 +143,17 @@ class ShopifyProduct
 
     function addImageSrcs($imageSrcs){
         foreach($imageSrcs as $imageSrc){
-            $this->imageSrcs[] = self::transferImageFileName($imageSrc);
+            $this->imageSrcs[] = $imageSrc;
         }
         return $this;
+    }
+
+    function getImageSrcFileNames(){
+        $names = [];
+        foreach($this->imageSrcs as $imageSrc){
+            $names[] = self::transferImageFileName($imageSrc);
+        }
+        return $names;
     }
 
     function clearImageSrcs(){
@@ -273,7 +301,44 @@ class ShopifyProduct
     /**
      * ECCUBE取り込み用（バリエーションなし）
      */
-    function toEccubeFormat($productId, $variationProduts) {
+    function toEccubeFormat($productId) {
+        return implode(",", [
+            self::ECCUBE__PRODUCT_ID__NULL,
+            self::ECCUBE__PUBLISH_STATUS__PUBLISH,
+            $this->getTitle(),
+            "",
+            "",
+            "",
+            "",
+            "",
+            0,
+            '"'.implode(",", $this->getImageSrcFileNames()).'"',
+            $this->categoryId,
+            "",
+            self::ECCUBE__SALE_TYPE__TYPE_A,
+            self::ECCUBE__CLASS_ID__NULL,
+            self::ECCUBE__CLASS_ID__NULL,
+            "",
+            $this->getProductCode(),
+            "",
+            1,
+            "",
+            "",
+            $this->price,
+            "",
+            "",
+            "",
+            $this->sku,
+            "0",
+            "",
+            "",
+        ]);
+    }
+
+    /**
+     * ECCUBE取り込み用（バリエーションなし）
+     */
+    function toEccubeFormatForVariation($productId, $variationProduts) {
         $classId1 = self::ECCUBE__CLASS_ID__NULL;
         foreach($variationProduts as $vp){
             if($vp->title == $this->getTitle() && $vp->option1_value == $this->optionValue1){
@@ -288,8 +353,11 @@ class ShopifyProduct
                 break;
             }
         }
+        if($this->getProductCode() == "4562134887491") {
+            \Log::debug("vp->option2_value: ".$vp->option2_value);
+        }
         return implode(",", [
-            self::ECCUBE__PRODUCT_ID__NULL,
+            $productId,
             self::ECCUBE__PUBLISH_STATUS__PUBLISH,
             $this->getTitle(),
             "",
@@ -298,7 +366,7 @@ class ShopifyProduct
             "",
             "",
             0,
-            '"'.implode(",", $this->imageSrcs).'"',
+            "",
             "",
             "",
             self::ECCUBE__SALE_TYPE__TYPE_A,

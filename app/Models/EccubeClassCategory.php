@@ -27,8 +27,7 @@ class EccubeClassCategory
     }
 
     public function getClassNameId() {
-        if(is_numeric($this->class_name_id)) return $this->class_name_id - 29;
-        return $this->class_name_id;
+        return $this->class_name_id + 136;
     }
 
     public function toString() {
