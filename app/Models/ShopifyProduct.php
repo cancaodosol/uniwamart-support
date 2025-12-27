@@ -12,6 +12,7 @@ class ShopifyProduct
     public $rowNo = "";
     public $handle = "";
     public $title = "";
+    public $body = "";
     public $type = "";
     public $categoryId = "";
     public $optionName1 = "";
@@ -31,6 +32,7 @@ class ShopifyProduct
     private $csvColumnIndex = [
         "handle" => 0,
         "title" => 1,
+        "body" => 2,
         "type" => 5,
         "optionName1" => 8,
         "optionValue1" => 9,
@@ -49,6 +51,7 @@ class ShopifyProduct
     private $csvColumnIndex2025 = [
         "handle" => 0,
         "title" => 1,
+        "body" => 2,
         "type" => 5,
         "optionName1" => 8,
         "optionValue1" => 9,
@@ -83,6 +86,7 @@ class ShopifyProduct
         $result = new ShopifyProduct();
         $result->handle = $row[$result->csvColumnIndex2025["handle"]];
         $result->title = mb_trim($row[$result->csvColumnIndex2025["title"]]);
+        $result->body = $row[$result->csvColumnIndex2025["body"]];
         $result->type = $row[$result->csvColumnIndex2025["type"]];
         $result->optionName1 = $row[$result->csvColumnIndex2025["optionName1"]];
         $result->optionValue1 = $row[$result->csvColumnIndex2025["optionValue1"]];
@@ -154,6 +158,42 @@ class ShopifyProduct
             $names[] = self::transferImageFileName($imageSrc);
         }
         return $names;
+    }
+
+    function getBody(){
+        if ($this->body == null || $this->body === "") {
+            return '""';
+        }
+
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $this->body);
+        libxml_clear_errors();
+
+        $baseUrl = 'http://localhost:8080/html/upload/save_image/shopify/';
+        foreach ($dom->getElementsByTagName('img') as $img) {
+            $src = trim($img->getAttribute('src'));
+            if ($src === "") {
+                continue;
+            }
+            $fileName = self::transferImageFileName($src);
+            if ($fileName === "") {
+                continue;
+            }
+            $img->setAttribute('src', $baseUrl . $fileName);
+        }
+
+        $bodyNode = $dom->getElementsByTagName('body')->item(0);
+        if ($bodyNode == null) {
+            return '"' . str_replace('"', '""', $this->body) . '"';
+        }
+
+        $html = "";
+        foreach ($bodyNode->childNodes as $child) {
+            $html .= $dom->saveHTML($child);
+        }
+
+        return '"' . str_replace('"', '""', $html) . '"';
     }
 
     function clearImageSrcs(){
@@ -308,7 +348,7 @@ class ShopifyProduct
             $this->getTitle(),
             "",
             "",
-            "",
+            $this->getBody(),
             "",
             "",
             0,

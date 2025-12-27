@@ -23,7 +23,8 @@ class ShopifyProductImportTest2Eccube extends TestCase
     private function get_products(): array
     {
         // $csvFile = ".".Storage::url('app/csv/smaregi/products_export_1 2.csv');
-        $csvFile = ".".Storage::url('app/csv/uniwamart_demo/products_export_1_1220.csv');
+        // $csvFile = ".".Storage::url('app/csv/uniwamart_demo/products_export_1_1220.csv');
+        $csvFile = ".".Storage::url('app/csv/uniwamart_demo/body_html/products_export_full_body.csv');
         $categories = $this->get_categories();
 
         $count = 1;
@@ -344,6 +345,44 @@ class ShopifyProductImportTest2Eccube extends TestCase
                 $line .= implode(",", [
                     $product->getTitle(),
                     $imageSrc
+                ])."\n";
+            }
+        }
+
+        \Log::debug($line);
+    }
+
+    /**
+     * 商品詳細から画像URLを取得します。
+     * 
+     * execute command
+     * - sail phpunit tests/Feature/ShopifyProductImportTest2Eccube.php --filter test_export_image_urls_in_body
+     */
+    public function test_export_image_urls_in_body(): void
+    {
+        \Log::debug("start: test_export_image_urls_in_body");
+        $products = $this->get_products();
+
+        $line = "";
+        foreach ($products as $product) {
+            if(!$product->isValidImportEccube([], true)) continue;
+            if ($product->body == null || $product->body === "") {
+                continue;
+            }
+
+            $dom = new \DOMDocument();
+            libxml_use_internal_errors(true);
+            $dom->loadHTML('<?xml encoding="UTF-8">' . $product->body);
+            libxml_clear_errors();
+
+            foreach ($dom->getElementsByTagName('img') as $img) {
+                $src = trim($img->getAttribute('src'));
+                if ($src === "") {
+                    continue;
+                }
+                $line .= implode(",", [
+                    $product->getTitle(),
+                    $src
                 ])."\n";
             }
         }
